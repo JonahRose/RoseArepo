@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import RoseArepo.loadData as load
+import RoseArepo.DataLoader as DataLoader
 
 def hist():
     return

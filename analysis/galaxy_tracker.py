@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import readData.loadData.py as load
+import readData.DataLoader as DataLoader
 
 def track_largest():
     return
