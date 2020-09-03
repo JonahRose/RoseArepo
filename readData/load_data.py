@@ -2,6 +2,9 @@ import h5py
 import numpy as np
 import os
 
+def get_pt1_mass(file_name):
+    return
+
 def get_nfiles(file_name):
     split_file_name = file_name.split("/")
     split_dir_name = split_file_name[:-1]
