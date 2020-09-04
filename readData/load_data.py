@@ -2,9 +2,6 @@ import h5py
 import numpy as np
 import os
 
-def get_pt1_mass(file_name):
-    return
-
 def get_nfiles(file_name):
     split_file_name = file_name.split("/")
     split_dir_name = split_file_name[:-1]
@@ -37,6 +34,7 @@ def get_ndata(file_name, file_type, this=-1, part_key=None):
         return ngroups[part_type]
     return ngroups
 
+#singular key
 def get_file_type(key):
     if 'Group' in key:
         return 'group'
@@ -48,7 +46,9 @@ def get_file_type(key):
         print(f"Not sure what kind of data you are looking for with {key}")
         return None
 
-def load_data(file_name, keys):
+#keys should be a list 
+#file_name should be an absolute path which end with 
+def load_data(path, keys):
     data_dict = dict()
     count_dict = {key:0 for key in keys}
     not_found_dict = {key:[] for key in keys}
