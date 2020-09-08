@@ -5,8 +5,8 @@ import os
 def get_nfiles(file_name):
     split_file_name = file_name.split("/")
     split_dir_name = split_file_name[:-1]
-    dir_name = "/".join(split_dir_name)
-    nfiles = len([name for name in os.listdir(dir_name) if split_file_name[-1] in name])
+    dir_name = "/".join(split_dir_name) + "/"
+    nfiles = len([name for name in os.listdir(dir_name) if split_file_name[-1] in name and os.path.isfile(dir_name+name)])
     if nfiles == 0:
         raise NameError(f"Did not find any files in {dir_name} with name {split_file_name[-1]}")
     return nfiles
@@ -30,6 +30,7 @@ def get_ndata(file_name, file_type, this=-1, part_key=None):
             ngroups = ofile['Header'].attrs[key+"_ThisFile"]
 
     if part_key != None:
+        print(part_key)
         part_type = int(part_key.split("/")[0][-1])
         return ngroups[part_type]
     return ngroups
@@ -47,14 +48,14 @@ def get_file_type(key):
         return None
 
 #keys should be a list 
-#file_name should be an absolute path which end with 
+#path should be an absolute path which end with 
 def load_data(path, keys):
     data_dict = dict()
     count_dict = {key:0 for key in keys}
     not_found_dict = {key:[] for key in keys}
-    num_files = get_nfiles(file_name)
+    num_files = get_nfiles(path)
     for i in range(num_files):
-        with h5py.File(f"{file_name}{i}.hdf5", "r") as ofile:
+        with h5py.File(f"{path}{i}.hdf5", "r") as ofile:
             for key in keys:
                 if key not in ofile:
                     not_found_dict[key].append(i)
@@ -64,7 +65,11 @@ def load_data(path, keys):
                     file_type = get_file_type(key)
                     if file_type == None:
                         continue
-                    ngroups = get_ndata(file_name, this=-1, file_type=file_type, part_key=key)
+                    if file_type=='part':
+                        part_key = key
+                    else:
+                        part_key = None
+                    ngroups = get_ndata(path, this=-1, file_type=file_type, part_key=part_key)
                     shape = list(ar.shape)
                     shape[0] = ngroups
                     data_dict[key] = np.zeros(shape)
