@@ -5,8 +5,8 @@ import os
 
 class DataLoader():
 
-    def __init__(self, path, snap_num, part_types, keys):
-        self._check_input(path, part_types, keys)
+    def __init__(self, path, snap_num, part_types=-1, keys=[]):
+        self._check_input(path, part_types, keys) #currently implemented in parts of many functions
 
         self.part_types = self._fix_part_types(part_types)
         self.snap_num = str(snap_num).zfill(3)
@@ -19,7 +19,7 @@ class DataLoader():
         self.pt1_mass = self.get_pt1_mass()
 
         #Change 'GroupMass' -> 'Groups/GroupMass'
-        self.keys = [] #TODO check what this does 
+        self.keys = [] 
         if type(keys)==type([]):
             if len(keys) > 0:
                 self.keys = self.get_correct_keys(keys)
@@ -31,14 +31,19 @@ class DataLoader():
         self.data = dict()
         self._load_data()
 
-    #TODO
     def __repr__(self):
-        return ''
+        return_str = ''
+        return_str += f"Path: {self.path}\n"
+        return_str += f"Snap Number: {self.snap_num}\n"
+        return_str += f"Part Types: {self.part_types}\n"
+        return_str += f"Keys: {self.keys}"
+        return return_str
 
-    #TODO: check if key is in data
     def __getitem__(self, attr):
-        key = self.get_correct_keys([attr])
-        return self.data[key[0]]
+        key = self.get_correct_keys([attr])[0]
+        if key not in self.data:
+            raise KeyError(f"Did not load {attr}")
+        return self.data[key]
 
     def _load_data(self):
         self.data = dict()
@@ -82,6 +87,8 @@ class DataLoader():
         if ty == type([]):
             return part_types
         elif ty == type(1) or ty == type(1.0):
+            if part_types == -1:
+                return [0,1,2,3,4,5]
             if part_types >= 5 or part_types < 0:
                 print(f"Did you mean PartType{part_types}?")
             return [part_types]
