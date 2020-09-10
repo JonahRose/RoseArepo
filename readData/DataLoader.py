@@ -1,4 +1,6 @@
 import readData.load_data as load
+
+import h5py
 import numpy as np
 import os
 
@@ -6,7 +8,7 @@ import os
 class DataLoader():
 
     def __init__(self, path, snap_num, part_types=-1, keys=[]):
-        self._check_input(path, part_types, keys) #currently implemented in parts of many functions
+        self._check_input(path, part_types, keys) #TODO:currently implemented in parts of many functions
 
         self.part_types = self._fix_part_types(part_types)
         self.snap_num = str(snap_num).zfill(3)
@@ -16,7 +18,12 @@ class DataLoader():
         self.group_path = ''
         self.get_paths()
         
-        self.pt1_mass = self.get_pt1_mass()
+        self.pt1_mass = None
+        self.boxsize = None
+        self.num_parts = None
+        self.num_subhalos = None
+        self.num_halos = None
+        self._get_header_info()
 
         #Change 'GroupMass' -> 'Groups/GroupMass'
         self.keys = [] 
@@ -95,12 +102,22 @@ class DataLoader():
         else:
             raise NameError("PartType not understood")
 
-    def get_pt1_mass(self):
-        if 1 in self.part_types:
-            return 0
-        with h5py.File(self.snap_path + '0.hdf5') as ofile:
-            masses = ofile['Header'].attrs['MassTable']
-        return masses[1]
+    def _get_header_info(self):
+        with h5py.File(self.snap_path + '0.hdf5', "r") as ofile:
+            pheader = ofile['Header']
+            if 1 not in self.part_types:
+                self.pt1_msas = 0
+            else:
+                self.pt1_mass = pheader.attrs['MassTable'][1]
+            self.boxsize = float(pheader.attrs['BoxSize'])
+            self.num_parts = pheader.attrs['NumPart_Total']
+
+        with h5py.File(self.group_path + '0.hdf5', "r") as ofile:
+            gheader = ofile['Header']
+            self.num_subhalos = int(gheader.attrs['Nsubgroups_Total'])
+            self.num_halos = int(gheader.attrs['Nsubgroups_Total'])
+
+        return 
 
     def get_file_key_pairs(self):
         file_keys = {'group':[], 'subhalo':[], 'part':[]}
