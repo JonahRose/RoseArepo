@@ -30,7 +30,6 @@ def get_ndata(file_name, file_type, this=-1, part_key=None):
             ngroups = ofile['Header'].attrs[key+"_ThisFile"]
 
     if part_key != None:
-        print(part_key)
         part_type = int(part_key.split("/")[0][-1])
         return ngroups[part_type]
     return ngroups
@@ -81,5 +80,8 @@ def load_data(path, keys):
         num_not_found = len(not_found_dict[key])
         if num_not_found!=0:
             if num_not_found == num_files:
-                print(f"Did not find any data for {key}")
+                if key == 'PartType1/Masses':
+                    pass
+                else:
+                    print(f"Did not find any data for {key}")
     return data_dict

@@ -43,7 +43,7 @@ class DataLoader():
         return_str += f"Path: {self.path}\n"
         return_str += f"Snap Number: {self.snap_num}\n"
         return_str += f"Part Types: {self.part_types}\n"
-        return_str += f"Keys: {self.keys}"
+        return_str += f"Keys: {self.data.keys()}"
         return return_str
 
     def __getitem__(self, attr):
@@ -133,6 +133,9 @@ class DataLoader():
     def get_correct_keys(self, input_keys):
         corrected_keys = []
         for key in input_keys:
+            if len(key.split('/')) == 2: #if key is already correct
+                corrected_keys.append(key)
+                continue
             if 'Group' in key:
                 corrected_keys.append(f'Group/{key}')
             elif 'Subhalo' in key:

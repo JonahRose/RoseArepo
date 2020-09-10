@@ -16,8 +16,56 @@ def calc_dist(loc1, loc2, boxlength):
 
     return np.sqrt(dx*dx + dy*dy + dz*dz)
 
-def calc_dens():
-    return
+def get_box_cut(part_pos, center, length):
+    xpr = center[0] + length
+    xmr = center[0] - length
+    ypr = center[1] + length
+    ymr = center[1] - length
+    zpr = center[2] + length
+    zmr = center[2] - length
+
+    is_x_in_box = (part_pos[:, 0] < xpr) & (part_pos[:, 0] > xmr)
+    is_y_in_box = (part_pos[:, 1] < ypr) & (part_pos[:, 1] > ymr)
+    is_z_in_box = (part_pos[:, 2] < zpr) & (part_pos[:, 2] > zmr)
+    
+    return is_x_in_box & is_y_in_box & is_z_in_box
+
+def calc_dens(path, snap, gal_pos, max_r=800, r_step=1.05):
+
+    cat = DataLoader(path, snap, part_types=[1,2], keys=['Coordinates','Masses'])
+    
+    part_pos = np.concatenate((cat['PartType2/Coordinates'], cat['PartType1/Coordinates']))
+    part_mass = np.concatenate((cat['PartType2/Masses'], np.zeros(cat['PartType1/Coordinates'].shape[0])+cat.pt1_mass))
+
+    #get the particles in the box 
+    box_cut = get_box_cut(part_pos, gal_pos, max_r)
+    part_pos  = part_pos[box_cut] - gal_pos
+    part_mass = part_mass[box_cut] * 1e10/0.7
+    part_r2 = np.sum(np.square(part_pos), axis=1)
+
+    #calculate density
+    dens_li = []
+    all_r = []
+    prev_r = 0
+    r = 0.1
+    N = 4/3*np.pi
+    while(r < max_r):
+        r2 = r*r
+        pr2 = prev_r*prev_r
+        scut = (part_r2 < r*r) & (part_r2 < prev_r*prev_r)
+        in_s = part_pos[scut]
+        in_s_mass = part_mass[scut]
+        out_vol = N*r*r2
+        in_vol = N*prev_r*pr2
+        mass = np.sum(in_s_mass)
+        
+        dens_li.append(mass / (out_vol - in_vol))
+        all_r.append(r)
+
+        prev_r = r
+        r *= r_step
+
+    return all_r, dens_li
 
 #returns the indecies for the largest subhalo in the box
 #returns -1 if a halo is not found within tolerance 
