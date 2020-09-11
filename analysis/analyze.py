@@ -67,6 +67,23 @@ def calc_dens(path, snap, gal_pos, max_r=800, r_step=1.05):
 
     return all_r, dens_li
 
+def get_next_gal(prev_mass, prev_loc, mass, pos, boxsize, tol=300):
+
+    mcut = (mass < prev_mass*2) & (mass > prev_mass*0.1)
+
+    idx_li = np.arange(mass.shape[0])[mcut] #just loop over galaxies with a reasonable mass
+    if len(idx_li) == 0:
+        return -1
+
+    for idx in idx_li:  
+        new_loc = pos[idx]
+        dist = calc_dist(prev_loc, new_loc, boxsize)  
+        if dist < tol:
+            return idx
+    if idx == idx_li[-1]:
+        return -1
+
+
 #returns the indecies for the largest subhalo in the box
 #returns -1 if a halo is not found within tolerance 
 #TODO: change to handle mergers better

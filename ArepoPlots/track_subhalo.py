@@ -17,32 +17,53 @@ def main():
     plot_dens = [126, 110, 90, 70, 50]
     plot_pos = True
 
-    target_idx = analyze.track_largest(path, start_snap, end_snap, start_gal_idx=gal_idx, tol=600)
     x_data = {'dens':[]}
     y_data = {'sfr':[], 'mass_type':[], 'dens':[], 'pos':[]}
     time = []
     dens_time = []
-    idx_counter = 0
+    prev_mass = 0
+    prev_pos = 0
+    counter = 0
 
-    for i in range(0, len(target_idx)):
-        snap = start_snap - i
+    for snap in range(start_snap, end_snap-1, -1):
         if snap % 10 == 0:
             print(snap)
-        idx = target_idx[idx_counter]
-        if idx == -1:
-            continue
-        idx_counter += 1
 
         keys = []
         if plot_sfr:
             keys.append('SubhaloSFR')
-        if plot_mass_type:
+        if plot_mass_type or plot_dens is not False:
             keys.append('SubhaloMassType')
         if plot_dens is not False or plot_pos:
             keys.append('SubhaloPos')
 
+        if len(keys) != 0:
+            if 'SubhaloMassType' not in keys:
+                keys.append('SubhaloMassType')
+            if 'SubhaloPos' not in keys:
+                keys.append('SubhaloPos')
+
         cat = DataLoader(path, snap, keys=keys)
+
+        if len(cat.data.keys()) == 0:
+            break
+        
+        if snap == start_snap:
+            idx = gal_idx
+        else:
+            idx = analyze.get_next_gal(prev_mass, prev_pos, np.sum(cat['SubhaloMassType'], axis=1), cat['SubhaloPos'], cat.boxsize, tol=200)
+
+        if counter == 3:
+            break
+        if idx == -1:
+            counter += 1
+            continue
+        elif counter > 0:
+            counter = 0
+
         time.append(cat.time)
+        prev_mass = np.sum(cat['SubhaloMassType'][idx])
+        prev_pos = cat['SubhaloPos'][idx]
 
         if plot_sfr:
             y_data['sfr'].append(cat['SubhaloSFR'][idx])
