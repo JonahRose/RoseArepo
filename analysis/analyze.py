@@ -81,11 +81,16 @@ def track_largest(path, start_snap, end_snap=0, start_gal_idx=0, tol=300):
     prev_loc = cat_0['SubhaloPos'][start_gal_idx]
     for snap_num in range(start_snap-1, end_snap-1, -1):
         cat = DataLoader(path, snap_num, keys=keys)
+        if 'Subhalo/SubhaloMass' not in cat.data:
+            return subhalo_idx_li
         pos = cat['SubhaloPos']
         mass = cat['SubhaloMass']
-        mcut = (mass < prev_mass*2) & (mass > prev_mass*0.5)
+        mcut = (mass < prev_mass*2) & (mass > prev_mass*0.1)
 
         idx_li = np.arange(mass.shape[0])[mcut] #just loop over galaxies with a reasonable mass
+        if len(idx_li) == 0:
+            return subhalo_idx_li
+
         for idx in idx_li:  
             new_loc = pos[idx]
             dist = calc_dist(prev_loc, new_loc, cat.boxsize)  
@@ -93,7 +98,7 @@ def track_largest(path, start_snap, end_snap=0, start_gal_idx=0, tol=300):
                 prev_loc = new_loc
                 subhalo_idx_li.append(idx)
                 break
-        if idx == idx_li[-1]:
-            subhalo_idx_li.append(-1)
-                
+            if idx == idx_li[-1]:
+                subhalo_idx_li.append(-1)
+
     return subhalo_idx_li

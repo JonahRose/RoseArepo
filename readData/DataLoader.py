@@ -20,6 +20,8 @@ class DataLoader():
         
         self.pt1_mass = None
         self.boxsize = None
+        self.time = None
+        self.redshift = None
         self.num_parts = None
         self.num_subhalos = None
         self.num_halos = None
@@ -111,6 +113,8 @@ class DataLoader():
                 self.pt1_mass = pheader.attrs['MassTable'][1]
             self.boxsize = float(pheader.attrs['BoxSize'])
             self.num_parts = pheader.attrs['NumPart_Total']
+            self.time = pheader.attrs['Time']
+            self.redshift = pheader.attrs['Redshift']
 
         with h5py.File(self.group_path + '0.hdf5', "r") as ofile:
             gheader = ofile['Header']
