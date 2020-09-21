@@ -12,6 +12,7 @@ class Light():
     def __init__(self, pos, brightness):
         self.brightness = np.array(brightness)
         self.pos = np.array(pos)
+        self.color = np.array([1,1,1])
         
         
         return
