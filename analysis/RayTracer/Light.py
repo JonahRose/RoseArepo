@@ -9,10 +9,10 @@ import numpy as np
 
 class Light():
     
-    def __init__(self, pos, brightness):
-        self.brightness = np.array(brightness)
+    def __init__(self, pos, color):
+        #self.brightness = np.array(brightness)
         self.pos = np.array(pos)
-        self.color = np.array([1,1,1])
+        self.color = np.array(color)
         
         
         return
