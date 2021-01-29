@@ -70,12 +70,12 @@ def calc_dens(path, snap, gal_pos, min_r=0.1, max_r=800, r_step=1.05):
 def calc_angular_momentum_vector(path, snap, gal_idx):
     #l = sum(r x p)
     
-    gal_cat = DataLoader(path, snap, keys=["SubhaloPos", "SubhaloVel", "SubhaloHalfmassRad"])
+    gal_cat = DataLoader(path, snap, keys=["SubhaloPos", "SubhaloVel", "SubhaloHalfmassRadType"])
     star_cat = DataLoader(path, snap, part_types=[4], keys=["Masses", "Coordinates", "Velocities"])
 
     pos = gal_cat['SubhaloPos'][gal_idx]
     vel = gal_cat["SubhaloVel"][gal_idx]
-    max_rad = gal_cat["SubhaloHalfmassRad"][gal_idx]*2
+    max_rad = gal_cat["SubhaloHalfmassRadType"][gal_idx,4]
 
     coords = star_cat["Coordinates"]
     pos_xcut = (coords[:,0] < pos[0]+max_rad) & (coords[:,0] > pos[0]-max_rad)
@@ -90,10 +90,23 @@ def calc_angular_momentum_vector(path, snap, gal_idx):
     r_xyz = star_pos - pos
     v_xyz = star_vel - vel
 
-    p_xyz = np.multiply(v_xyz, star_mass[:, np.newaxis])
+    p_xyz = v_xyz * star_mass[:,np.newaxis]
     l_xyz = np.sum(np.cross(r_xyz, p_xyz), axis=0)
 
-    return l_xyz
+    l_hat = l_xyz / np.sqrt(l_xyz[0]**2+l_xyz[1]**2+l_xyz[2]**2)
+
+    return l_hat
+
+def rotate_data(pos, l_hat):
+
+    x_ = np.array([l_hat[0], 0, -l_hat[0]*l_hat[0]/l_hat[2]])
+    z_ = l_hat
+    y_ = np.cross(x_, z_)
+
+    A = np.array([x_, y_, z_]).T
+
+    return np.tensordot(pos,A, axes=[1,0])
+
 
 def get_next_gal(prev_mass, prev_loc, mass, pos, boxsize, tol=300):
 
