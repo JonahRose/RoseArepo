@@ -52,7 +52,7 @@ def calc_dens(path, snap, gal_pos, min_r=0.1, max_r=800, r_step=1.05):
     while(r < max_r):
         r2 = r*r
         pr2 = prev_r*prev_r
-        scut = (part_r2 < r2) & (part_r2 < pr2)
+        scut = (part_r2 < r2) & (part_r2 > pr2)
         in_s = part_pos[scut]
         in_s_mass = part_mass[scut]
         out_vol = N*r*r2
@@ -67,46 +67,100 @@ def calc_dens(path, snap, gal_pos, min_r=0.1, max_r=800, r_step=1.05):
 
     return all_r, dens_li
 
-def calc_angular_momentum_vector(path, snap, gal_idx):
-    #l = sum(r x p)
-    
-    gal_cat = DataLoader(path, snap, keys=["SubhaloPos", "SubhaloVel", "SubhaloHalfmassRadType"])
-    star_cat = DataLoader(path, snap, part_types=[4], keys=["Masses", "Coordinates", "Velocities"])
+def calc_surface_dens_profile(path, snap, gal_idx, min_r, max_r, r_step=1.05, part_types=[4], zheight=None):
+    cat = DataLoader(path, snap, part_types=part_types, keys=['Coordinates','Masses', 'Velocities'])
+    gal_cat = DataLoader(path, snap, keys=['SubhaloPos', 'SubhaloVel'])
 
-    pos = gal_cat['SubhaloPos'][gal_idx]
-    vel = gal_cat["SubhaloVel"][gal_idx]
-    max_rad = gal_cat["SubhaloHalfmassRadType"][gal_idx,4]
+    gal_pos = gal_cat['SubhaloPos'][gal_idx]
+    gal_vel = gal_cat['SubhaloVel'][gal_idx]
 
-    coords = star_cat["Coordinates"]
-    pos_xcut = (coords[:,0] < pos[0]+max_rad) & (coords[:,0] > pos[0]-max_rad)
-    pos_ycut = (coords[:,1] < pos[1]+max_rad) & (coords[:,1] > pos[1]-max_rad)
-    pos_zcut = (coords[:,2] < pos[2]+max_rad) & (coords[:,2] > pos[2]-max_rad)
-    pos_cut = pos_xcut & pos_ycut & pos_zcut
+    pos = cat['Coordinates']
+    mass = cat['Masses']*1e10/0.7
+    vel = cat['Velocities']
 
-    star_pos = coords[pos_cut]
-    star_vel = star_cat['Velocities'][pos_cut]
-    star_mass = star_cat['Masses'][pos_cut]
-    
-    r_xyz = star_pos - pos
-    v_xyz = star_vel - vel
+    box_cut = get_box_cut(pos, gal_pos, max_r)   
+    pos_box = pos[box_cut] - gal_pos
+    vel_box = vel[box_cut] - gal_vel
+    mass_box = mass[box_cut]
 
-    p_xyz = v_xyz * star_mass[:,np.newaxis]
-    l_xyz = np.sum(np.cross(r_xyz, p_xyz), axis=0)
+    part_r2 = np.sum(np.square(pos_box), axis=1)
 
-    l_hat = l_xyz / np.sqrt(l_xyz[0]**2+l_xyz[1]**2+l_xyz[2]**2)
+    pos_box, vel_box = get_rotate_data(pos_box, vel_box, mass_box, face_on=True)
 
-    return l_hat
+    #l_hat = calc_angular_momentum_vector(path, snap, 0)
+    #pos_box = rotate_data(pos_box, l_hat)
+   
 
-def rotate_data(pos, l_hat):
+    if zheight is not None:
+        zcut = (pos_box[:,2] > -zheight) & (pos_box[:,2] < zheight)
+        pos_box = pos_box[zcut]
+        mass_box = mass_box[zcut]
+        part_r2 = np.sum(np.square(pos_box), axis=1)
 
-    x_ = np.array([l_hat[0], 0, -l_hat[0]*l_hat[0]/l_hat[2]])
-    z_ = l_hat
-    y_ = np.cross(x_, z_)
+    dens_li = []
+    all_r = []
+    prev_r = 0
+    r = min_r
+    while(r < max_r):
+        r2 = r*r
+        pr2 = prev_r*prev_r
+        scut = (part_r2<r2) & (part_r2 > pr2)
+        in_s = pos_box[scut]
+        in_s_mass = mass_box[scut]
+        out_area = np.pi*r2
+        in_area = np.pi*pr2
+        mass = np.sum(in_s_mass)
 
-    A = np.array([x_, y_, z_]).T
+        dens_li.append(mass / (out_area - in_area))
+        all_r.append(r)
 
-    return np.tensordot(pos,A, axes=[1,0])
+        prev_r = r
+        r += r_step
 
+    return all_r, dens_li
+
+#adapted from torreylabtools
+def get_rotate_data(coords, velocities, masses, phi=0, theta=0, edge_on=False, face_on=False):
+
+    x = coords[:,0]
+    y = coords[:,1]
+    z = coords[:,2]
+    vx = velocities[:,0]
+    vy = velocities[:,1]
+    vz = velocities[:,2]
+
+    if edge_on or face_on:
+        
+        r2 = x*x+y*y+z*z
+        scut = r2<25
+
+        lz = np.sum(masses[scut] * (x[scut]*vy[scut] - y[scut]*vx[scut]))
+        lx = np.sum(masses[scut] * (y[scut]*vz[scut] - z[scut]*vy[scut]))
+        ly = np.sum(masses[scut] * (z[scut]*vx[scut] - x[scut]*vz[scut]))
+
+        phi = np.arctan2(ly, lx)
+        theta = np.arctan2(np.sqrt(lx*lx + ly*ly), lz)
+
+        if edge_on:
+            phi += np.pi/2
+            theta += np.pi/2
+
+    x_ = -z  * np.sin(theta) + (x * np.cos(phi) + y *np.sin(phi)) * np.cos(theta)
+    y_ = -x  * np.sin(phi)   + y  * np.cos(phi)
+    z_ =  z  * np.cos(theta) + (x * np.cos(phi) + y *np.sin(phi)) * np.sin(theta)
+    vx_ = -vz  * np.sin(theta) + (vx * np.cos(phi) + vy *np.sin(phi)) * np.cos(theta)
+    vy_ = -vx  * np.sin(phi)   + vy  * np.cos(phi)
+    vz_ =  vz  * np.cos(theta) + (vx * np.cos(phi) + vy *np.sin(phi)) * np.sin(theta)
+
+    coords[:,0] = x_
+    coords[:,1] = y_
+    coords[:,2] = z_
+
+    velocities[:,0] = vx_
+    velocities[:,1] = vy_
+    velocities[:,2] = vz_
+
+    return coords, velocities
 
 def get_next_gal(prev_mass, prev_loc, mass, pos, boxsize, tol=300):
 
