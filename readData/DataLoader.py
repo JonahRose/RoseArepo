@@ -1,4 +1,5 @@
 import readData.load_data as load
+from readData.Offsets import Offsets
 
 import h5py
 import numpy as np
@@ -7,7 +8,7 @@ import os
 
 class DataLoader():
 
-    def __init__(self, path, snap_num, part_types=-1, keys=[]):
+    def __init__(self, path, snap_num, part_types=-1, keys=[], sub_idx=-1, fof_idx=-1):
         self._check_input(path, part_types, keys) #TODO:currently implemented in parts of many functions
 
         self.part_types = self._fix_part_types(part_types)
@@ -17,7 +18,7 @@ class DataLoader():
         self.snap_path = ''
         self.group_path = ''
         self.get_paths()
-        
+
         self.pt1_mass = None
         self.boxsize = None
         self.time = None
@@ -25,7 +26,17 @@ class DataLoader():
         self.num_parts = None
         self.num_subhalos = None
         self.num_halos = None
+        self.num_part_files = None
+        self.num_grp_files = None
         self._get_header_info()
+
+        #create Offset objects if needed (only want a specific galaxy/group)
+        self.sub_idx = sub_idx
+        self.fof_idx = fof_idx
+        self.part_offsets = None
+        self.sub_offsets = None
+        self.fof_offsets = None
+        self._assign_offsets()
 
         #Change 'GroupMass' -> 'Groups/GroupMass'
         self.keys = [] 
@@ -54,13 +65,33 @@ class DataLoader():
             raise KeyError(f"Did not load {attr}")
         return self.data[key]
 
+    def _assign_offsets(self):
+        if self.sub_idx == -1 :
+            self.sub_offsets = None
+        else:
+            self.sub_offsets = Offsets(self.group_path, self.snap_path, self.sub_idx, -1, self.num_grp_files, self.num_part_files)   
+        if self.fof_idx ==-1:
+            self.fof_offsets = None
+        else:
+            self.fof_offsets = Offsets(self.group_path, self.snap_path, -1, self.fof_idx, self.num_grp_files, self.num_part_files)   
+
+        #figure out which Offset particles should use (default to subfind)
+        if self.fof_offsets is not None:
+            self.part_offsets = self.fof_offsets
+        if self.sub_offsets is not None:
+            self.part_offsets = self.sub_offsets
+        return
+
+
     def _load_data(self):
         self.data = dict()
         for typ in self.file_keys.keys():
-            if typ in ['group', 'subhalo']:
-                data_typ = load.load_data(self.group_path, self.file_keys[typ])
+            if typ == 'subhalo':
+                data_typ = load.load_data(self.group_path, self.file_keys[typ], self.sub_offsets)
+            elif typ == 'group':
+                data_typ = load.load_data(self.group_path, self.file_keys[typ], self.fof_offsets)
             elif typ == 'part':
-                data_typ = load.load_data(self.snap_path, self.file_keys[typ])
+                data_typ = load.load_data(self.snap_path, self.file_keys[typ], self.part_offsets)
             else:
                 raise NameError("Need to propagate changes to self.file_keys") 
             for key in data_typ:
@@ -115,23 +146,25 @@ class DataLoader():
             self.num_parts = pheader.attrs['NumPart_Total']
             self.time = pheader.attrs['Time']
             self.redshift = pheader.attrs['Redshift']
+            self.num_part_files = int(pheader.attrs['NumFilesPerSnapshot'])
 
         with h5py.File(self.group_path + '0.hdf5', "r") as ofile:
             gheader = ofile['Header']
             self.num_subhalos = int(gheader.attrs['Nsubgroups_Total'])
             self.num_halos = int(gheader.attrs['Nsubgroups_Total'])
+            self.num_grp_files = int(gheader.attrs['NumFiles'])
 
         return 
 
     def get_file_key_pairs(self):
-        file_keys = {'group':[], 'subhalo':[], 'part':[]}
+        file_keys = dict() # {'group':[], 'subhalo':[], 'part':[]}
         for key in self.keys:
             if 'Group' in key:
-                file_keys['group'].append(key)
+                file_keys.setdefault('group', []).append(key)
             elif 'Subhalo' in key:
-                file_keys['subhalo'].append(key)
+                file_keys.setdefault('subhalo', []).append(key)
             else:
-                file_keys['part'].append(key)
+                file_keys.setdefault('part', []).append(key)
         return file_keys
 
     def get_correct_keys(self, input_keys):
