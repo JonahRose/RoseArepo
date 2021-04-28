@@ -110,7 +110,10 @@ class DataLoader():
 
         snap_dirs = [name for name in indir if 'snap' in name and not os.path.isfile(self.path + name)]
         if len(snap_dirs) > 0:
-            self.snap_path = self.path + [name for name in snap_dirs if self.snap_num in name][0] + '/'
+            path_list = [name for name in snap_dirs if self.snap_num in name]
+            if len(path_list)==0:
+                raise ValueError(f"Snap {self.snap_num} does not appear to be present in {self.path}")
+            self.snap_path = self.path + path_list[0] + '/'
         snap_files = os.listdir(self.snap_path)
         self.snap_path += [name for name in snap_files if '.hdf5' in name][0].split('.')[0] +'.'
 
