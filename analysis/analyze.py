@@ -17,12 +17,20 @@ def calc_dist(loc1, loc2, boxlength):
     return np.sqrt(dx*dx + dy*dy + dz*dz)
 
 def get_box_cut(part_pos, center, length):
-    xpr = center[0] + length
-    xmr = center[0] - length
-    ypr = center[1] + length
-    ymr = center[1] - length
-    zpr = center[2] + length
-    zmr = center[2] - length
+
+    if type(length) == type([]):
+        xlen = length[0]
+        ylen = length[1]
+        zlen = length[2]
+    else:
+        xlen = ylen = zlen = length
+
+    xpr = center[0] + xlen
+    xmr = center[0] - xlen
+    ypr = center[1] + ylen
+    ymr = center[1] - ylen
+    zpr = center[2] + zlen
+    zmr = center[2] - zlen
 
     is_x_in_box = (part_pos[:, 0] < xpr) & (part_pos[:, 0] > xmr)
     is_y_in_box = (part_pos[:, 1] < ypr) & (part_pos[:, 1] > ymr)
@@ -71,10 +79,10 @@ def calc_surface_dens_profile(path, snap, gal_idx, min_r, max_r, r_step=1.05, pa
     cat = DataLoader(path, snap, part_types=part_types, keys=['Coordinates','Masses', 'Velocities'])
     gal_cat = DataLoader(path, snap, keys=['SubhaloPos', 'SubhaloVel'])
 
-    gal_pos = gal_cat['SubhaloPos'][gal_idx]
+    gal_pos = gal_cat['SubhaloPos'][gal_idx]/0.7
     gal_vel = gal_cat['SubhaloVel'][gal_idx]
 
-    pos = cat['Coordinates']
+    pos = cat['Coordinates']/0.7
     mass = cat['Masses']*1e10/0.7
     vel = cat['Velocities']
 
@@ -120,7 +128,8 @@ def calc_surface_dens_profile(path, snap, gal_idx, min_r, max_r, r_step=1.05, pa
     return all_r, dens_li
 
 #adapted from torreylabtools
-def get_rotate_data(coords, velocities, masses, phi=0, theta=0, edge_on=False, face_on=False):
+#assumes data has already been centered and had galaxy's velocity removed
+def get_rotate_data(coords, velocities, masses, phi=0, theta=0, edge_on=False, face_on=False, get_pt=False, r_max=5):
 
     x = coords[:,0]
     y = coords[:,1]
@@ -132,7 +141,7 @@ def get_rotate_data(coords, velocities, masses, phi=0, theta=0, edge_on=False, f
     if edge_on or face_on:
         
         r2 = x*x+y*y+z*z
-        scut = r2<25
+        scut = (r2<r_max*r_max)
 
         lz = np.sum(masses[scut] * (x[scut]*vy[scut] - y[scut]*vx[scut]))
         lx = np.sum(masses[scut] * (y[scut]*vz[scut] - z[scut]*vy[scut]))
@@ -144,6 +153,9 @@ def get_rotate_data(coords, velocities, masses, phi=0, theta=0, edge_on=False, f
         if edge_on:
             phi += np.pi/2
             theta += np.pi/2
+
+    if get_pt:
+        return phi, theta
 
     x_ = -z  * np.sin(theta) + (x * np.cos(phi) + y *np.sin(phi)) * np.cos(theta)
     y_ = -x  * np.sin(phi)   + y  * np.cos(phi)
@@ -164,17 +176,22 @@ def get_rotate_data(coords, velocities, masses, phi=0, theta=0, edge_on=False, f
 
 def get_next_gal(prev_mass, prev_loc, mass, pos, boxsize, tol=300):
 
-    mcut = (mass < prev_mass*2) & (mass > prev_mass*0.1)
+    mcut = (mass < prev_mass*2) & (mass > prev_mass*0.5)
 
     idx_li = np.arange(mass.shape[0])[mcut] #just loop over galaxies with a reasonable mass
     if len(idx_li) == 0:
         return -1
 
+    all_dist = []
     for idx in idx_li:  
         new_loc = pos[idx]
         dist = calc_dist(prev_loc, new_loc, boxsize)  
-        if dist < tol:
-            return idx
+        all_dist.append(dist)
+        #if dist < tol:
+        #    return idx
+    all_dist = np.array(all_dist)
+    if min(all_dist) < tol:
+        return idx_li[all_dist==min(all_dist)][0]
     if idx == idx_li[-1]:
         return -1
 
