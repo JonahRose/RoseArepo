@@ -19,10 +19,10 @@ class DataLoader():
         self.group_path = ''
         self.get_paths()
 
-        self.pt1_mass = None
         self.boxsize = None
         self.time = None
         self.redshift = None
+        self.h = None
         self.num_parts = None
         self.num_subhalos = None
         self.num_halos = None
@@ -141,15 +141,12 @@ class DataLoader():
     def _get_header_info(self):
         with h5py.File(self.snap_path + '0.hdf5', "r") as ofile:
             pheader = ofile['Header']
-            if 1 not in self.part_types:
-                self.pt1_msas = 0
-            else:
-                self.pt1_mass = pheader.attrs['MassTable'][1]
             self.boxsize = float(pheader.attrs['BoxSize'])
             self.num_parts = pheader.attrs['NumPart_Total']
             self.time = pheader.attrs['Time']
             self.redshift = pheader.attrs['Redshift']
             self.num_part_files = int(pheader.attrs['NumFilesPerSnapshot'])
+            self.h = float(pheader.attrs['HubbleParam'])
 
         with h5py.File(self.group_path + '0.hdf5', "r") as ofile:
             gheader = ofile['Header']

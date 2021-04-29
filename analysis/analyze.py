@@ -48,7 +48,7 @@ def calc_dens(path, snap, gal_pos, min_r=0.1, max_r=800, r_step=1.05):
     #get the particles in the box 
     box_cut = get_box_cut(part_pos, gal_pos, max_r)
     part_pos  = part_pos[box_cut] - gal_pos
-    part_mass = part_mass[box_cut] * 1e10/0.7
+    part_mass = part_mass[box_cut] * 1e10/cat.h
     part_r2 = np.sum(np.square(part_pos), axis=1)
 
     #calculate density
@@ -79,11 +79,11 @@ def calc_surface_dens_profile(path, snap, gal_idx, min_r, max_r, r_step=1.05, pa
     cat = DataLoader(path, snap, part_types=part_types, keys=['Coordinates','Masses', 'Velocities'])
     gal_cat = DataLoader(path, snap, keys=['SubhaloPos', 'SubhaloVel'])
 
-    gal_pos = gal_cat['SubhaloPos'][gal_idx]/0.7
+    gal_pos = gal_cat['SubhaloPos'][gal_idx]/cat.h
     gal_vel = gal_cat['SubhaloVel'][gal_idx]
 
-    pos = cat['Coordinates']/0.7
-    mass = cat['Masses']*1e10/0.7
+    pos = cat['Coordinates']/cat.h
+    mass = cat['Masses']*1e10/cat.h
     vel = cat['Velocities']
 
     box_cut = get_box_cut(pos, gal_pos, max_r)   
