@@ -57,7 +57,10 @@ class Offsets():
                     particles_before_gal_this_file = np.sum(ofile[dkey][:idx-num_gals], axis=0)
                     particles_before_gal += particles_before_gal_this_file
                     break
-                particles_this_file = np.array(ofile[dkey])
+                if dkey not in ofile: #if a file has no data in it - found in dm only unifrom box
+                    particles_this_file = 0
+                else:
+                    particles_this_file = np.array(ofile[dkey])
                 particles_before_gal += np.sum(particles_this_file, axis=0)
                 num_gals += num_gals_this_file
 
