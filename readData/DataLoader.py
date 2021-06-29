@@ -14,6 +14,9 @@ class DataLoader():
         self.part_types = self._fix_part_types(part_types)
         self.snap_num = str(snap_num).zfill(3)
         
+        self.sub_idx = sub_idx
+        self.fof_idx = fof_idx
+
         self.path = path
         self.snap_path = ''
         self.group_path = ''
@@ -31,8 +34,6 @@ class DataLoader():
         self._get_header_info()
 
         #create Offset objects if needed (only want a specific galaxy/group)
-        self.sub_idx = sub_idx
-        self.fof_idx = fof_idx
         self.part_offsets = None
         self.sub_offsets = None
         self.fof_offsets = None
@@ -122,6 +123,9 @@ class DataLoader():
             self.group_path = self.path + [name for name in group_dirs if self.snap_num in name][0] + '/'
         group_files = os.listdir(self.group_path)
         self.group_path += [name for name in group_files if '.hdf5' in name][0].split('.')[0] + '.'
+
+        if 'subhalo' not in group_files[0] and self.sub_idx != -1:
+            raise NameError("Trying to get a subhalo, but no subfind data is present")
 
         return
 

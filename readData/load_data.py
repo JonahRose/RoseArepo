@@ -80,17 +80,18 @@ def get_part_key(file_type, key):
     return part_key
 
 def get_part_range(part_in_file, data_changed, file_type, offsets, part_type, part_count):
-  
+
     start = offsets.particles_before_gal[part_type] + data_changed - part_count
     end = start + offsets.particles_in_gal[part_type] - data_changed
-    if end > part_in_file:
+
+    if end > part_in_file: #galaxy is spread accross multiple files 
         end = part_in_file
 
-    data_start = data_changed
+    data_start = data_changed #start of galaxy particle array
     data_end = data_start + (end-start)
 
-    part_count += end #-start
-    data_changed += data_end-data_start
+    part_count += end 
+    data_changed += data_end - data_start
 
     return [int(data_start), int(data_end)], [int(start), int(end)], data_changed, part_count
 
@@ -102,7 +103,7 @@ def load_data(path, keys, offsets=None):
     data_dict = dict()
     count_dict = {key:0 for key in keys}
     part_count_dict = {key:0 for key in keys}
-    data_changed_dict = {key:0 for key in keys}
+    data_changed_dict = {key:0 for key in keys} #for acounting for a galaxy spread across many files
     not_found_dict = {key:[] for key in keys}
     num_files = get_nfiles(path)
     done_mass_tab = False
@@ -142,7 +143,6 @@ def load_data(path, keys, offsets=None):
                             shape=list(ar.shape)
                             shape[0] = offsets.particles_in_gal[part_type]
                             data_dict[key] = np.zeros(shape)
-
 
                         data_dict[key][data_range[0]:data_range[1]] = ar[ar_range[0]:ar_range[1]]
                     else:

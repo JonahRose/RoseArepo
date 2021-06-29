@@ -123,7 +123,7 @@ def calc_surface_dens_profile(path, snap, gal_idx, min_r, max_r, r_step=1.05, pa
         all_r.append(r)
 
         prev_r = r
-        r += r_step
+        r *= r_step
 
     return all_r, dens_li
 
