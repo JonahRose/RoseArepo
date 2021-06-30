@@ -114,13 +114,26 @@ class DataLoader():
             path_list = [name for name in snap_dirs if self.snap_num in name]
             if len(path_list)==0:
                 raise ValueError(f"Snap {self.snap_num} does not appear to be present in {self.path}")
-            self.snap_path = self.path + path_list[0] + '/'
+            select_path = path_list[0]
+            if len(path_list)>0:
+                for path in path_list:
+                    if 'snapdir' in path:
+                        select_path = path
+                print(f"Found more than one possible snapshot folder, I am choosing to use: {select_path}")
+            self.snap_path = self.path + select_path + '/'
         snap_files = os.listdir(self.snap_path)
         self.snap_path += [name for name in snap_files if '.hdf5' in name][0].split('.')[0] +'.'
 
         group_dirs = [name for name in indir if 'group' in name and not os.path.isfile(self.path + name)]
+        if len(group_dirs) == 0:
+            print("Did not find any group data")
+        select_group = [name for name in group_dirs if self.snap_num in name][0]
         if len(group_dirs) > 0:
-            self.group_path = self.path + [name for name in group_dirs if self.snap_num in name][0] + '/'
+            for path in group_dirs:
+                if path == f'groups_{str(self.snap_num).zfill(3)}':
+                    select_group = path 
+            print(f"Found more than one possible group folder, I am choosing to use: {select_group}")
+        self.group_path = self.path + select_group + '/'
         group_files = os.listdir(self.group_path)
         self.group_path += [name for name in group_files if '.hdf5' in name][0].split('.')[0] + '.'
 
