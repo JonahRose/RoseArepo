@@ -119,7 +119,7 @@ class DataLoader():
                 for path in path_list:
                     if 'snapdir' in path:
                         select_path = path
-                print(f"Found more than one possible snapshot folder, I am choosing to use: {select_path}")
+                #print(f"Found more than one possible snapshot folder, I am choosing to use: {select_path}")
             self.snap_path = self.path + select_path + '/'
         snap_files = os.listdir(self.snap_path)
         self.snap_path += [name for name in snap_files if '.hdf5' in name][0].split('.')[0] +'.'
@@ -132,7 +132,7 @@ class DataLoader():
             for path in group_dirs:
                 if path == f'groups_{str(self.snap_num).zfill(3)}':
                     select_group = path 
-            print(f"Found more than one possible group folder, I am choosing to use: {select_group}")
+            #print(f"Found more than one possible group folder, I am choosing to use: {select_group}")
         self.group_path = self.path + select_group + '/'
         group_files = os.listdir(self.group_path)
         self.group_path += [name for name in group_files if '.hdf5' in name][0].split('.')[0] + '.'

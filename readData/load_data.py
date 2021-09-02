@@ -144,6 +144,7 @@ def load_data(path, keys, offsets=None):
                             shape[0] = offsets.particles_in_gal[part_type]
                             data_dict[key] = np.zeros(shape)
 
+                        #print(data_range, ar_range, count_dict[key])
                         data_dict[key][data_range[0]:data_range[1]] = ar[ar_range[0]:ar_range[1]]
                     else:
                         if offsets.gal_file == i:
