@@ -4,11 +4,11 @@ from readData.Offsets import Offsets
 import h5py
 import numpy as np
 import os
-
+import time
 
 class DataLoader():
 
-    def __init__(self, path, snap_num, part_types=-1, keys=[], sub_idx=-1, fof_idx=-1):
+    def __init__(self, path, snap_num, part_types=-1, keys=[], sub_idx=-1, fof_idx=-1, sub_offsets=None, fof_offsets=None):
         self._check_input(path, part_types, keys) #TODO:currently implemented in parts of many functions
 
         self.part_types = self._fix_part_types(part_types)
@@ -67,20 +67,21 @@ class DataLoader():
         return self.data[key]
 
     def _assign_offsets(self):
-        if self.sub_idx == -1 :
-            self.sub_offsets = None
-        else:
-            self.sub_offsets = Offsets(self.group_path, self.snap_path, self.sub_idx, -1, self.num_grp_files, self.num_part_files)   
+
         if self.fof_idx ==-1:
-            self.fof_offsets = None
-        else:
-            self.fof_offsets = Offsets(self.group_path, self.snap_path, -1, self.fof_idx, self.num_grp_files, self.num_part_files)   
+            if self.sub_idx != -1: #only sub
+                self.sub_offsets = Offsets(self.group_path, self.snap_path, self.sub_idx, -1, self.num_grp_files, self.num_part_files)   
+        else: #has fof
+            self.fof_offsets = Offsets(self.group_path, self.snap_path, -1, self.fof_idx, self.num_grp_files, self.num_part_files) 
+            if self.sub_idx != -1: #has both
+                self.sub_offsets = Offsets(self.group_path, self.snap_path, self.sub_idx, self.fof_idx, self.num_grp_files, self.num_part_files)
 
         #figure out which Offset particles should use (default to subfind)
-        if self.fof_offsets is not None:
+        if self.sub_idx == -1:
             self.part_offsets = self.fof_offsets
-        if self.sub_offsets is not None:
+        else:
             self.part_offsets = self.sub_offsets
+
         return
 
 
@@ -121,21 +122,37 @@ class DataLoader():
                         select_path = path
                 #print(f"Found more than one possible snapshot folder, I am choosing to use: {select_path}")
             self.snap_path = self.path + select_path + '/'
-        snap_files = os.listdir(self.snap_path)
-        self.snap_path += [name for name in snap_files if '.hdf5' in name][0].split('.')[0] +'.'
+            snap_files = os.listdir(self.snap_path)
+            self.snap_path += [name for name in snap_files if '.hdf5' in name][0].split('.')[0] +'.'
+        else:
+            snap_files = [name for name in indir if 'snap' in name and os.path.isfile(self.path + name)]
+            if len(snap_files) == 0:
+                raise ValueError("Cannot find snapshot data")
+            path_list = [name for name in snap_files if self.snap_num in name]
+            if len(path_list) == 0:
+                raise ValueError(f"Snap {self.snap_num} does not appear to be present in {self.path}")
+            select_path = path_list[0]
+            self.snap_path = self.path + select_path 
 
         group_dirs = [name for name in indir if 'group' in name and not os.path.isfile(self.path + name)]
-        if len(group_dirs) == 0:
-            print("Did not find any group data")
-        select_group = [name for name in group_dirs if self.snap_num in name][0]
+
         if len(group_dirs) > 0:
+            select_group = [name for name in group_dirs if self.snap_num in name][0]
             for path in group_dirs:
                 if path == f'groups_{str(self.snap_num).zfill(3)}':
                     select_group = path 
-            #print(f"Found more than one possible group folder, I am choosing to use: {select_group}")
-        self.group_path = self.path + select_group + '/'
-        group_files = os.listdir(self.group_path)
-        self.group_path += [name for name in group_files if '.hdf5' in name][0].split('.')[0] + '.'
+            self.group_path = self.path + select_group + '/'
+            group_files = os.listdir(self.group_path)
+            self.group_path += [name for name in group_files if '.hdf5' in name][0].split('.')[0] + '.'
+        else:
+            group_files = [name for name in indir if 'fof' in name and os.path.isfile(self.path + name)]
+            if len(group_files) == 0:
+                raise ValueError("Cannot find snapshot data")
+            path_list = [name for name in group_files if self.snap_num in name]
+            if len(path_list) == 0:
+                raise ValueError(f"Group data for snap {self.snap_num} does not appear to be present in {self.path}")
+            select_path = path_list[0]
+            self.group_path = self.path + select_path 
 
         if 'subhalo' not in group_files[0] and self.sub_idx != -1:
             raise NameError("Trying to get a subhalo, but no subfind data is present")
@@ -156,7 +173,11 @@ class DataLoader():
             raise NameError("PartType not understood")
 
     def _get_header_info(self):
-        with h5py.File(self.snap_path + '0.hdf5', "r") as ofile:
+        if os.path.isfile(self.snap_path):
+            file_name = self.snap_path
+        else:
+            file_name = self.snap_path + '0.hdf5'
+        with h5py.File(file_name, "r") as ofile:
             pheader = ofile['Header']
             self.boxsize = float(pheader.attrs['BoxSize'])
             self.num_parts = pheader.attrs['NumPart_Total']
@@ -165,11 +186,20 @@ class DataLoader():
             self.num_part_files = int(pheader.attrs['NumFilesPerSnapshot'])
             self.h = float(pheader.attrs['HubbleParam'])
 
-        with h5py.File(self.group_path + '0.hdf5', "r") as ofile:
+        if os.path.isfile(self.group_path):
+            file_name = self.group_path
+        else:
+            file_name = self.group_path + '0.hdf5'
+        with h5py.File(file_name, "r") as ofile:
             gheader = ofile['Header']
             self.num_subhalos = int(gheader.attrs['Nsubgroups_Total'])
             self.num_halos = int(gheader.attrs['Nsubgroups_Total'])
             self.num_grp_files = int(gheader.attrs['NumFiles'])
+
+        if self.sub_idx > self.num_subhalos:
+            raise KeyError(f"This snapshot only has {self.num_subhalos} subhalos, tried to access subhalo {self.sub_idx}")
+        if self.fof_idx > self.num_halos:
+            raise KeyError(f"This snapshot only has {self.num_halos} fof groups, tried to access fof group {self.fof_idx}")
 
         return 
 
@@ -198,7 +228,13 @@ class DataLoader():
                 for i in self.part_types:
                     corrected_keys.append(f"PartType{i}/{key}")
         return corrected_keys
-    
+
+    def get_halo(self, part_types=-1, sub_idx=-1, fof_idx=-1, keys=[]):
+
+        new_halo = DataLoader(self.path, self.snap_num, part_types, sub_idx=sub_idx, fof_idx=fof_idx, sub_offsets=self.sub_offsets, fof_offsets=self.fof_offsets)
+
+        return new_halo
+
     #TODO
     def _check_input(self, path, part_types, keys):
         return

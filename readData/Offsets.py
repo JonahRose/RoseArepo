@@ -1,5 +1,7 @@
 import h5py
 import numpy as np
+import time
+import os
 
 class Offsets():
 
@@ -12,18 +14,55 @@ class Offsets():
         self.snap_path = spath
         self.num_grp_files = num_gfiles
         self.num_snap_files = num_sfiles
-        self.sub_idx = int(sub_idx)
-        self.fof_idx = int(fof_idx)
+
+        self.sub_idx = None
+        self.fof_idx = None
+        self._get_idx(sub_idx, fof_idx)
 
         self.gal_file = None
         self.gal_before = None
         self.part_files = None
         self.particles_in_gal = None
+        self.particles_before_file = None
         self.particles_before_gal = None
+        self.particles_per_file = None
         self.get_gal_file_num()
 
         return 
 
+    #redefine sub_idx if it is given relative to the fof index
+    #otherwise keep it the same as given
+    def _get_idx(self, sub_idx, fof_idx):
+        if sub_idx==-1 or fof_idx == -1:
+            self.sub_idx = sub_idx
+            self.fof_idx = fof_idx
+        else:
+            file_counter = 0
+            for i in range(self.num_grp_files):
+                if self.num_grp_files == 1:
+                    file_name = self.grp_path
+                else:
+                    file_name = f"{self.grp_path}{i}.hdf5"
+                with h5py.File(file_name, "r") as ofile:
+                    halos_this_file = ofile['Header'].attrs['Ngroups_ThisFile']
+                    file_counter += int(halos_this_file)
+
+                    if file_counter > fof_idx:
+                        fof_start_idx = int(ofile['Group/GroupFirstSub'][fof_idx - (file_counter - halos_this_file)])
+                        break
+            self.sub_idx = fof_start_idx + sub_idx
+            self.fof_idx = -1
+        return
+
+
+    def check_if_offsets(self):
+        if 'postprocessing' in os.listdir("/".join(self.snap_path.split("/")[:-3])):
+            return True
+        return False
+
+    def get_saved_offsets(self): 
+
+        return
 
     #get which file number our galaxy is on and the particle locations
     #probably not work if there are subhalos that are not in groups
@@ -36,17 +75,15 @@ class Offsets():
             gkey = "Subhalo/SubhaloGrNr"
             is_subs = True
             hkey = "Nsubgroups_ThisFile"
+            tkey = "Nsubgroups_Total"
         elif self.fof_idx > -1:
             idx = self.fof_idx
             pkey = "Group/GroupLenType"
             is_subs = False
             hkey = "Ngroups_ThisFile"
+            tkey = "Ngroups_Total"
         else:
             return #not a single galaxy
-
-        #get the number of each particle in the galaxy
-        #get the number of particles in galaxies before it 
-        #get which files each particle type covers 
 
         num_groups = 0
         num_gals=0 #number of subs/fofs in files before idx
@@ -55,15 +92,19 @@ class Offsets():
         particles_before_gal = np.zeros(6) #number of particles of each type before the galaxy
         particles_in_gal = np.zeros(6) #number of particles on each type in the galaxy
         subs_still_to_go = None
+        particles_before_file = np.zeros(6)
         for i in range(self.num_grp_files):
-            with h5py.File(f"{self.grp_path}{i}.hdf5", "r") as ofile:
-                #get the number of subs/fofs in this file
+            if self.num_grp_files == 1:
+                file_name = self.grp_path
+            else:
+                file_name = f"{self.grp_path}{i}.hdf5"
+            with h5py.File(file_name, "r") as ofile:
                 num_gals_this_file = int(ofile['Header'].attrs[hkey])
                 num_groups_this_file = int(ofile['Header'].attrs['Ngroups_ThisFile'])
-                #print(num_groups_this_file)
+
                 if num_gals_this_file == 0: #if a file has no data in it - found in dm only unifrom box
                     continue
-               
+
                 #the number of subhalos that are already accounted for in this file
                 #this will happen when the fof that a subhalo is in is not the first on the file 
                 num_subs_this_file = 0
@@ -71,52 +112,33 @@ class Offsets():
                 #if the groups for the subs on this file have already been accounted for, then remove
                 #the galaxies from the counters that are relative to the current file index 
                 if subs_still_to_go is not None:
-                    #print("test", subs_still_to_go, num_gals_this_file)
                     if subs_still_to_go >= num_gals_this_file:
                         subs_before_group -= num_gals_this_file
                         subs_still_to_go -= num_gals_this_file
                         num_gals += num_gals_this_file
                         continue
 
-                #print("test1", idx, num_gals, num_gals_this_file, subs_still_to_go, particles_before_gal)
-                #print(ofile['Group/GroupFirstSub'][-1], ofile['Subhalo/SubhaloGrNr'][-1])
                 if idx < num_gals+num_gals_this_file: #if the sub/fof is on this file
                     gal_file = i
-                    #print(i, idx, num_gals, num_gals_this_file)
                     
                     #get any particles on this file in fof groups before out sub's group
                     if is_subs:
 
                         #if we have had to get the number of subhalos before ours from a different file
                         if subs_still_to_go is not None:
-                            #print("test2", subs_before_group, subs_still_to_go)
                             particles_before_gal += np.sum(ofile['Subhalo/SubhaloLenType'][subs_before_group:subs_still_to_go], axis=0)
                             particles_in_gal = np.array(ofile[pkey][idx-num_gals])
                             break
                         #if the subhalo is on the same file as its fof
                         #account for any groups that are before our subhalo
                         else:
-                            #print("test")
                             gidx = int(ofile[gkey][0]) #num_groups# int(ofile[gkey][0])
                             group_counter = 0
-                            #print(idx, num_gals, gidx, ofile[gkey][idx-num_gals])
-                            #print(i, num_groups, list(ofile['Group/GroupFirstSub']),list(ofile['Group/GroupNsubs']))
-                            #if gidx > 0:
-                            #    num_subs_this_file += ofile['Group/GroupFirstSub'][gidx-1]
-                            #    num_subs_this_file += ofile['Group/GroupNsubs'][gidx-1]
-                            #print(gidx, idx, num_gals, num_gals_this_file, num_groups_this_file, ofile[gkey][idx-num_gals], ofile[gkey][0], num_groups, num_gals_groups)
-                            #print(ofile['Group/GroupFirstSub'][0], ofile['Subhalo/SubhaloGrNr'][0], ofile['Subhalo/SubhaloGrNr'][idx-num_gals], gidx, gidx-num_groups)
                             num_subs_this_file = ofile['Group/GroupFirstSub'][ofile[gkey][idx-num_gals]-num_groups]-num_gals
-                            #print(subs_this_file, num_groups, ofile['Subhalo/SubhaloGrNr'][idx-num_gals])
-                            
-                            #while gidx < ofile[gkey][idx-num_gals]:
+
                             while num_groups < ofile['Subhalo/SubhaloGrNr'][idx-num_gals]:
-                                #print("test")
                                 particles_before_gal += np.array(ofile['Group/GroupLenType'][group_counter])
-                                #print(particles_before_gal)
                                 num_subs_this_group = int(ofile['Group/GroupNsubs'][group_counter])
-                                #if num_subs_this_group != -1:
-                                #    num_subs_this_file += num_subs_this_group
                                 num_groups += 1
                                 group_counter += 1
 
@@ -124,37 +146,28 @@ class Offsets():
                     #get the number of particles in the current fof before our sub and the particles in
                     #the current fof/sub
                     particles_in_gal = np.array(ofile[pkey][idx-num_gals])
-                    #print(particles_before_gal)
                     particles_before_gal += np.sum(ofile[pkey][num_subs_this_file:idx-num_gals], axis=0)
-                    #print("test6", particles_before_gal, num_subs_this_file, idx-num_gals,  np.sum(ofile[pkey][num_subs_this_file:idx-num_gals], axis=0))
                     break
 
                 #check if the group starts on this file but the subhalo is on a different one
                 if is_subs:
                     nsubs = np.array(ofile['Group/GroupNsubs'])
-                    #print(idx, num_gals, np.sum(nsubs), num_gals_groups)
                     if idx < num_gals+np.sum(nsubs) or (num_gals_groups >= num_gals and idx < num_gals_groups + np.sum(nsubs)):
                         #get the index into the subhalo's fof group
                         first_sub = np.array(ofile['Group/GroupFirstSub'])
                         group_li = np.arange(ofile['Header'].attrs['Ngroups_ThisFile'])
-                        #print(group_li, num_gals_groups, idx, first_sub)
                         my_group_cut = (first_sub <= idx) & (first_sub != -1)
                         my_group = group_li[my_group_cut][-1]
-                        #print("group", my_group, num_groups_this_file, first_sub[my_group], idx)
 
                         #find the number of particles and subhalos before the target one
-                        particles_before_gal += np.sum(ofile['Group/GroupLenType'][:my_group], axis=0)
-                        #print("test3", my_group, first_sub[my_group], nsubs[my_group])
-                        #print(np.sum(nsubs[:my_group]) , num_gals_groups ,num_gals , num_gals_this_file) 
+                        parts_before_my_group = np.sum(ofile['Group/GroupLenType'][:my_group], axis=0)
+                        particles_before_gal += parts_before_my_group
                         subs_before_group = np.sum(nsubs[:my_group]) + num_gals_groups -num_gals - num_gals_this_file 
-                        #if subs_before_group < 0:
-                        #    subs_before_group += num_gals_this_file - np.sum(nsubs[:my_group])
         
                         #figure out how many subs are on this file and subsequent files that we 
                         #still need to account for
                         subs_still_to_go = idx - num_gals - num_gals_this_file
                         subs_in_file = num_gals_this_file - (first_sub[my_group] - num_gals)
-                        #print("test4", my_group, subs_before_group, subs_still_to_go, subs_in_file)
 
                         #subhalos before ours that are in the same fof but on a different file
                         if subs_in_file <=0: 
@@ -165,35 +178,37 @@ class Offsets():
 
                         num_gals += num_gals_this_file
                         continue
+                    else:
+                        num_gals_groups += np.sum(ofile['Group/GroupNsubs']) 
                 
                 #if the fof is not on this file add all particles on the file (parts in all fofs)
-                particles_this_file = np.array(ofile['Group/GroupLenType']) #particles in groups
-                #print("test5", particles_before_gal, np.sum(particles_this_file, axis=0))
-                #print("len", len(particles_this_file), particles_before_gal)
+                particles_this_file = np.array(ofile[dkey])
                 particles_before_gal += np.sum(particles_this_file, axis=0)
-                #print("test5", particles_before_gal)
                 num_gals += num_gals_this_file
-                num_gals_groups += np.sum(ofile['Group/GroupNsubs']) 
                 num_groups += num_groups_this_file
-
-        #print(particles_in_gal, particles_before_gal)
 
         self.gal_file = gal_file
         self.gal_before = num_gals
 
-        #print(particles_in_gal, particles_before_gal)
         self.particles_in_gal = particles_in_gal
+        self.particles_before_file = particles_before_file
         self.particles_before_gal = particles_before_gal
 
         particle_files = np.zeros(6)
         num_parts_before = np.zeros(6)
         num_parts_before_file = np.zeros(6)
+        particles_per_file = []
         done = [False]*6
         for i in range(self.num_grp_files):
             if False not in done:
                 break
-            with h5py.File(f"{self.snap_path}{i}.hdf5", "r") as ofile:
+            if self.num_grp_files == 1:
+                file_name = self.snap_path
+            else:
+                file_name = f"{self.snap_path}{i}.hdf5"
+            with h5py.File(file_name, "r") as ofile:
                 num_parts_file = np.array(ofile['Header'].attrs["NumPart_ThisFile"])
+                particles_per_file.append(num_parts_file)
                 for part in range(6):
                     if done[part]:
                         continue
@@ -204,6 +219,7 @@ class Offsets():
                     else:
                         num_parts_before[part] += num_parts_file[part]
 
+        self.particles_per_file = np.array(particles_per_file)
         self.part_files = particle_files
 
         return
