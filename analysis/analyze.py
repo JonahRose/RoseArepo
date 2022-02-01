@@ -129,7 +129,7 @@ def calc_surface_dens_profile(path, snap, gal_idx, min_r, max_r, r_step=1.05, pa
 
 #adapted from torreylabtools
 #assumes data has already been centered and had galaxy's velocity removed
-def get_rotate_data(coords, velocities, masses, phi=0, theta=0, edge_on=False, face_on=False, get_pt=False, r_max=5):
+def get_rotate_data(coords, velocities, masses, phi=0, theta=0, edge_on=False, face_on=False, get_pt=False, r_max=5, r_min=0):
 
     x = coords[:,0]
     y = coords[:,1]
@@ -141,7 +141,7 @@ def get_rotate_data(coords, velocities, masses, phi=0, theta=0, edge_on=False, f
     if edge_on or face_on:
         
         r2 = x*x+y*y+z*z
-        scut = (r2<r_max*r_max)
+        scut = (r2<r_max*r_max) & (r2>r_min*r_min)
 
         lz = np.sum(masses[scut] * (x[scut]*vy[scut] - y[scut]*vx[scut]))
         lx = np.sum(masses[scut] * (y[scut]*vz[scut] - z[scut]*vy[scut]))
@@ -151,7 +151,7 @@ def get_rotate_data(coords, velocities, masses, phi=0, theta=0, edge_on=False, f
         theta = np.arctan2(np.sqrt(lx*lx + ly*ly), lz)
 
         if edge_on:
-            phi += np.pi/2
+            #phi += np.pi/2
             theta += np.pi/2
 
     if get_pt:
