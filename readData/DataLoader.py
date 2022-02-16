@@ -60,6 +60,10 @@ class DataLoader():
         return_str += f"Keys: {self.data.keys()}"
         return return_str
 
+    def __contains__(self, attr):
+        key = self.get_correct_keys([attr])[0]
+        return key in self.data
+
     def __getitem__(self, attr):
         key = self.get_correct_keys([attr])[0]
         if key not in self.data:
