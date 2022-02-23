@@ -26,6 +26,7 @@ class DataLoader():
         self.time = None
         self.redshift = None
         self.h = None
+        self.masstable = None
         self.num_parts = None
         self.num_subhalos = None
         self.num_halos = None
@@ -189,6 +190,7 @@ class DataLoader():
             self.redshift = pheader.attrs['Redshift']
             self.num_part_files = int(pheader.attrs['NumFilesPerSnapshot'])
             self.h = float(pheader.attrs['HubbleParam'])
+            self.masstable = np.array(pheader['MassTable'])
 
         if os.path.isfile(self.group_path):
             file_name = self.group_path
