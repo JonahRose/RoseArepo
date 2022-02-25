@@ -123,13 +123,13 @@ class ImageData():
         return np.array(x,dtype='f',ndmin=1)
 
     def vfloat(self, x):
-        return x.ctypes.data_as(ctypes.POINTER(ctypes.c_float));
+        return x.ctypes.data_as(ctypes.POINTER(ctypes.c_float))
 
     def cfloat(self, x):
-        return ctypes.c_float(x);
+        return ctypes.c_float(x)
 
     def checklen(self, x):
-        return len(np.array(x,ndmin=1));
+        return len(np.array(x,ndmin=1))
 
 def make_surface_density_image(path, snap_num, parttype=0, xpixels=256, fov=10.0, axisratio=1.0, ma=None, mi=None, sub_idx=-1, fof_idx=-1):
 
@@ -205,23 +205,33 @@ def make_surface_density_image(path, snap_num, parttype=0, xpixels=256, fov=10.0
     H=data.fcor(data.hsml)
 
     # could be packaged into a sep class dealing with image properties
-    xpixels=np.int(xpixels); ypixels=np.int(xpixels * axisratio)
-    xmin = -fov; xmax = fov;
-    ymin = -fov; ymax = fov
+    xpixels=np.int(xpixels)
+    ypixels=np.int(xpixels * axisratio)
+    
+    xmin = -fov
+    xmax = fov
+    ymin = -fov
+    ymax = fov
 
     ## check for whether the optional extra weights are set
-    NM=1;
+    NM=1
     if(data.checklen(M2)==data.checklen(M1)):
-        NM=2;
+        NM=2
         if(data.checklen(M3)==data.checklen(M1)):
-            NM=3;
+            NM=3
         else:
-            M3=np.copy(M1);
+            M3=np.copy(M1)
     else:
-        M2=np.copy(M1);
-        M3=np.copy(M1);
+        M2=np.copy(M1)
+        M3=np.copy(M1)
+
     ## initialize the output vector to recieve the results
-    XYpix=xpixels*ypixels; MAP=ctypes.c_float*XYpix; MAP1=MAP(); MAP2=MAP(); MAP3=MAP();
+    XYpix=(xpixels*ypixels)
+    MAP=ctypes.c_float*XYpix
+    MAP1=MAP()
+    MAP2=MAP()
+    MAP3=MAP()
+
     ## main call to the imaging routine
     smooth_routine.project_and_smooth( \
         ctypes.c_int(N), 			# number of particles
@@ -242,9 +252,8 @@ def make_surface_density_image(path, snap_num, parttype=0, xpixels=256, fov=10.0
     # Here, the MassMaps should contain actual mass maps with units of [M1] / ( [dimensions of pos]^2 )
     # For example, if mass is in units of 10^{10} M_solar and pos is in kpc:  10^{10} M_solar / kpc ^2
 
-
     # set boundaries and do some clipping
-    MassMap = np.copy(MassMap1);
+    MassMap = np.copy(MassMap1)
     print("MassMap : max: ", np.max(MassMap), "   min: ", np.min(MassMap))
 
 ####### could put similar functionality back in later.
