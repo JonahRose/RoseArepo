@@ -115,49 +115,41 @@ class DataLoader():
             self.path += 'output/'
         indir = os.listdir(self.path)
 
-        snap_dirs = [name for name in indir if 'snap' in name and not os.path.isfile(self.path + name)]
+        snap_dirs = [name for name in indir if 'snap' in name] # and not os.path.isfile(self.path + name)]
         if len(snap_dirs) > 0:
             path_list = [name for name in snap_dirs if self.snap_num in name]
             if len(path_list)==0:
                 raise ValueError(f"Snap {self.snap_num} does not appear to be present in {self.path}")
             select_path = path_list[0]
-            if len(path_list)>0:
+            if len(path_list)>1: #check if we find more than one possible snapshot file
                 for path in path_list:
-                    if 'snapdir' in path:
+                    if 'snapdir' in path or '.hdf5' in path:
                         select_path = path
-                #print(f"Found more than one possible snapshot folder, I am choosing to use: {select_path}")
-            self.snap_path = self.path + select_path + '/'
-            snap_files = os.listdir(self.snap_path)
-            self.snap_path += [name for name in snap_files if '.hdf5' in name][0].split('.')[0] +'.'
-        else:
-            snap_files = [name for name in indir if 'snap' in name and os.path.isfile(self.path + name)]
-            if len(snap_files) == 0:
-                raise ValueError("Cannot find snapshot data")
-            path_list = [name for name in snap_files if self.snap_num in name]
-            if len(path_list) == 0:
-                raise ValueError(f"Snap {self.snap_num} does not appear to be present in {self.path}")
-            select_path = path_list[0]
-            self.snap_path = self.path + select_path 
+                print(f"Found more than one possible snapshot folder, I am choosing to use: {select_path}")
+            self.snap_path = self.path + select_path
+            if not os.path.isfile(self.snap_path): #check if the snapshot contains more than one file
+                self.snap_path += '/'
+                snap_files = os.listdir(self.snap_path)
+                self.snap_path += [name for name in snap_files if '.hdf5' in name][0].split('.')[0] +'.'
 
-        group_dirs = [name for name in indir if 'group' in name and not os.path.isfile(self.path + name)]
-
+        #do the same for the group files
+        group_dirs = [name for name in indir if 'group' in name or 'fof' in name]
         if len(group_dirs) > 0:
-            select_group = [name for name in group_dirs if self.snap_num in name][0]
-            for path in group_dirs:
-                if path == f'groups_{str(self.snap_num).zfill(3)}':
-                    select_group = path 
-            self.group_path = self.path + select_group + '/'
-            group_files = os.listdir(self.group_path)
-            self.group_path += [name for name in group_files if '.hdf5' in name][0].split('.')[0] + '.'
-        else:
-            group_files = [name for name in indir if 'fof' in name and os.path.isfile(self.path + name)]
-            if len(group_files) == 0:
-                raise ValueError("Cannot find snapshot data")
-            path_list = [name for name in group_files if self.snap_num in name]
-            if len(path_list) == 0:
-                raise ValueError(f"Group data for snap {self.snap_num} does not appear to be present in {self.path}")
-            select_path = path_list[0]
-            self.group_path = self.path + select_path 
+            group_list = [name for name in group_dirs if self.snap_num in name]
+            if len(group_list) == 0:
+                raise ValueError(f'Group {self.snap_num} does not appear to be present in {self.path}')
+            select_group = group_list[0]
+            if len(group_list) > 1:
+                for path in group_list:
+                    if 'groups' in path or '.hdf5' in path:
+                        select_group = path 
+            self.group_path = self.path + select_group 
+            if not os.path.isfile(self.group_path):
+                self.group_path += '/'
+                group_files = os.listdir(self.group_path)
+                self.group_path += [name for name in group_files if '.hdf5' in name][0].split('.')[0] + '.'
+            else:
+                group_files = [self.group_path]
 
         if 'subhalo' not in group_files[0] and self.sub_idx != -1:
             raise NameError("Trying to get a subhalo, but no subfind data is present")
