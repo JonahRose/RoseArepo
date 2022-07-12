@@ -151,8 +151,11 @@ class DataLoader():
             else:
                 group_files = [self.group_path]
 
-        if 'subhalo' not in group_files[0] and self.sub_idx != -1:
-            raise NameError("Trying to get a subhalo, but no subfind data is present")
+            if 'subhalo' not in group_files[0] and self.sub_idx != -1:
+                raise NameError("Trying to get a subhalo, but no subfind data is present")
+
+        if len(group_dirs) == 0 and len(snap_dirs) == 0:
+            raise NameError(f"No snapshot data found at {self.path}")
 
         return
 
