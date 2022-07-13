@@ -3,6 +3,21 @@ import numpy as np
 import os,h5py,time
 import functools
 
+"""
+This script will copy an existing snapshot file and write a new one in a compressed format.
+The script is modified from a similar script provided by Francisco Antonio Villaescusa Navarro.
+
+With the default compression value, users should expect a ~60% reduction in the size of the file
+    and a ~3x increase in readtime.
+Users can use 'h5diff' in the command line (or set check_files to True) to ensure that the 
+    compressed files are not different from the originals
+
+This script can take a while to execute, it is recomended to run in parallel with processors
+    roughly equal to the number of individual files in a single snapshot
+
+The script can be run with something similar to from the command line:
+    mpirun -n 32 python compress_hdf5.py
+"""
 def main():
 
     ###### MPI DEFINITIONS ######                                    
