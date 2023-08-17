@@ -109,6 +109,10 @@ class DataLoader():
     #snap and group paths end so just the file number is required
     #eg. snapdir_###/snap_###.
     def get_paths(self):
+        if 'hdf5' in self.path:
+            self.snap_path = self.path
+            self.group_path = self.path
+            return
         if self.path[-1] != "/":
             self.path += "/"
         if 'output' in os.listdir(self.path):
@@ -173,6 +177,7 @@ class DataLoader():
             raise NameError("PartType not understood")
 
     def _get_header_info(self):
+        print(self.snap_path)
         if os.path.isfile(self.snap_path):
             file_name = self.snap_path
         else:
@@ -193,14 +198,16 @@ class DataLoader():
             file_name = self.group_path + '0.hdf5'
         with h5py.File(file_name, "r") as ofile:
             gheader = ofile['Header']
-            self.num_subhalos = int(gheader.attrs['Nsubgroups_Total'])
-            self.num_halos = int(gheader.attrs['Nsubgroups_Total'])
-            self.num_grp_files = int(gheader.attrs['NumFiles'])
+            
+            if 'Nsubgroups_Total' in gheader.attrs:
+                self.num_subhalos = int(gheader.attrs['Nsubgroups_Total'])
+                self.num_halos = int(gheader.attrs['Nsubgroups_Total'])
+                self.num_grp_files = int(gheader.attrs['NumFiles'])
 
-        if self.sub_idx > self.num_subhalos:
-            raise KeyError(f"This snapshot only has {self.num_subhalos} subhalos, tried to access subhalo {self.sub_idx}")
-        if self.fof_idx > self.num_halos:
-            raise KeyError(f"This snapshot only has {self.num_halos} fof groups, tried to access fof group {self.fof_idx}")
+                if self.sub_idx > self.num_subhalos:
+                    raise KeyError(f"This snapshot only has {self.num_subhalos} subhalos, tried to access subhalo {self.sub_idx}")
+                if self.fof_idx > self.num_halos:
+                    raise KeyError(f"This snapshot only has {self.num_halos} fof groups, tried to access fof group {self.fof_idx}")
 
         return 
 
