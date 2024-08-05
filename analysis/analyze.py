@@ -1,4 +1,3 @@
-import matplotlib.pyplot as plt
 import numpy as np
 from readData.DataLoader import DataLoader
 import ctypes
@@ -202,7 +201,6 @@ def get_rotate_data(coords, velocities, masses, phi=0, theta=0, edge_on=False, f
         theta = np.arctan2(np.sqrt(lx*lx + ly*ly), lz)
 
         if edge_on:
-            #phi += np.pi/2
             theta += np.pi/2
 
     if get_pt:

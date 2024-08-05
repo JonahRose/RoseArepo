@@ -113,6 +113,10 @@ class DataLoader():
             self.snap_path = self.path
             self.group_path = self.path
             return
+        if type(self.path) != type("string"):
+            self.snap_path = self.path[0]
+            self.group_path = self.path[1]
+            return
         if self.path[-1] != "/":
             self.path += "/"
         if 'output' in os.listdir(self.path):
@@ -177,7 +181,6 @@ class DataLoader():
             raise NameError("PartType not understood")
 
     def _get_header_info(self):
-        print(self.snap_path)
         if os.path.isfile(self.snap_path):
             file_name = self.snap_path
         else:
@@ -201,7 +204,7 @@ class DataLoader():
             
             if 'Nsubgroups_Total' in gheader.attrs:
                 self.num_subhalos = int(gheader.attrs['Nsubgroups_Total'])
-                self.num_halos = int(gheader.attrs['Nsubgroups_Total'])
+                self.num_halos = int(gheader.attrs['Ngroups_Total'])
                 self.num_grp_files = int(gheader.attrs['NumFiles'])
 
                 if self.sub_idx > self.num_subhalos:
